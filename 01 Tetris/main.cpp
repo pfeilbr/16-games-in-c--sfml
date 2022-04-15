@@ -1,5 +1,7 @@
+#include <iostream>
 #include <SFML/Graphics.hpp>
 #include <time.h>
+#include <windows.h>
 using namespace sf;
 
 const int M = 20;
@@ -7,147 +9,186 @@ const int N = 10;
 
 int field[M][N] = {0};
 
-struct Point
-{int x,y;} a[4], b[4];
+struct point {
+    int x, y;
+}  a[4], b[4];
 
-int figures[7][4] =
+int figures [7][4] = 
 {
-	1,3,5,7, // I
-	2,4,5,7, // Z
-	3,5,4,6, // S
-	3,5,4,7, // T
-	2,3,5,7, // L
-	3,5,7,6, // J
-	2,3,4,5, // O
+    3,1,5,7, //I
+    4,2,5,7, //Z
+    5,3,4,6, //S
+    5,3,4,7, //T
+    3,2,5,7, //L
+    7,5,3,6, //J
+    2,3,4,5  //O
 };
 
-bool check()
-{
-   for (int i=0;i<4;i++)
-	  if (a[i].x<0 || a[i].x>=N || a[i].y>=M) return 0;
-      else if (field[a[i].y][a[i].x]) return 0;
-
-   return 1;
-};
+int dx=0; bool rotate=false; int colorNum=1; 
+float timer=0 , delay =0.3, deltaTime=0;
+int n=0, k, count =0, score =0;
 
 
-int main()
-{
-    srand(time(0));	 
+bool check (){
+    for (int i=0; i<4; i++)
+        if (a[i].x < 0 || a[i].x >= N || a[i].y >= M) return false;
+        else if (a[i].y>=0 && field[a[i].y] [a[i].x]) return false;
 
-	RenderWindow window(VideoMode(320, 480), "The Game!");
+        return true;
+}
 
-    Texture t1,t2,t3;
-	t1.loadFromFile("images/tiles.png");
-	t2.loadFromFile("images/background.png");
-	t3.loadFromFile("images/frame.png");
+void spawn(){
+        colorNum = 1 + rand() % 7;
+        n = rand()%7;
 
-	Sprite s(t1), background(t2), frame(t3);
+        for (int i=0; i<4; i++)
+        {
+            a[i].x = (figures[n][i] % 2)   + 4;//adding 4 spaces for bringing to centre
+            a[i].y = (figures[n][i] / 2)   - 5;// adding 5 spaces for delay
+        }
+}
 
-    int dx=0; bool rotate=0; int colorNum=1;
-	float timer=0,delay=0.3; 
+void restartGame(){
+    for (int i=0; i<M; i++){
+        for (int j=0; j<N; j++){
+            field[i][j]=0;
+        }
+    }
+    score=0;
+}
 
-	Clock clock;
+int main(){
 
-    while (window.isOpen())
-    {
-		float time = clock.getElapsedTime().asSeconds();
-		clock.restart();
-		timer+=time;
+    srand(time(0));
+
+    RenderWindow window (VideoMode (320, 480), "The Game!", Style::Close);
+
+    Texture t, bg, gameOver, banner;
+    t.loadFromFile("images/tiles.png");
+    bg.loadFromFile("images/background.png");
+    gameOver.loadFromFile("images/gameOver.png");
+    banner.loadFromFile("images/banner.png");
+
+
+    Sprite s(t);
+    Sprite Sbg(bg);
+    Sprite SgameOver(gameOver);
+    Sprite Sbanner(banner);
+    s.setTextureRect(IntRect(0,0,18,18));
+    SgameOver.setPosition(0.f, 9*18.f);
+
+    Clock clock;
+
+    spawn();
+
+    while (window.isOpen()){
+
+        deltaTime = clock.getElapsedTime().asSeconds();
+        clock.restart();
+        timer+=deltaTime;
 
         Event e;
-        while (window.pollEvent(e))
-        {
-            if (e.type == Event::Closed)
+        while (window.pollEvent(e)){
+
+            if (e.type == Event::Closed) 
                 window.close();
 
-			if (e.type == Event::KeyPressed)
-			  if (e.key.code==Keyboard::Up) rotate=true;
-			  else if (e.key.code==Keyboard::Left) dx=-1;
-			  else if (e.key.code==Keyboard::Right) dx=1;
-		}
+            if (e.type == Event::KeyPressed)
+                if (e.key.code == Keyboard::Up)
+                {    if (n!=6) rotate=true; }
+                else if (e.key.code == Keyboard::Left) dx=-1;
+                else if (e.key.code == Keyboard::Right) dx=1;
+        }
 
-	if (Keyboard::isKeyPressed(Keyboard::Down)) delay=0.05;
+        if(Keyboard::isKeyPressed(Keyboard::Down)) delay = 0.03;
 
-	//// <- Move -> ///
-	for (int i=0;i<4;i++)  { b[i]=a[i]; a[i].x+=dx; }
-    if (!check()) for (int i=0;i<4;i++) a[i]=b[i];
+        /////////<-Move->///////////
+        for (int i=0; i<4; i++) {
+            b[i] = a[i];//storing previous state in case there is a collision with wall after moving
+            a[i].x+=dx;
+        }
+        if (!check()) for (int i=0; i<4; i++) a[i] = b[i];
 
-	//////Rotate//////
-	if (rotate)
-	  {
-		Point p = a[1]; //center of rotation
-		for (int i=0;i<4;i++)
-		  {
-			int x = a[i].y-p.y;
-			int y = a[i].x-p.x;
-			a[i].x = p.x - x;
-			a[i].y = p.y + y;
-	 	  }
-   	    if (!check()) for (int i=0;i<4;i++) a[i]=b[i];
-	  }
+        ///////////Rotate////////////
+        if(rotate){
+            point p = a[0]; //centre of rotation.
+            for (int i=0; i<4; i++)
+            {
+               int x = a[i].y-p.y;
+               int y = a[i].x-p.x;
+               a[i].x = p.x - x;
+               a[i].y = p.y + y;
+            }
+            if (!check()) for (int i=0; i<4; i++) a[i]=b[i];
+        }
 
-	///////Tick//////
-	if (timer>delay)
-	  {
-	    for (int i=0;i<4;i++) { b[i]=a[i]; a[i].y+=1; }
+        //////////Tick////////////
+        if (timer>delay){
+            for (int i=0; i<4; i++) {
+                b[i]=a[i];
+                a[i].y += 1;
+            }
 
-		if (!check())
-		{
-		 for (int i=0;i<4;i++) field[b[i].y][b[i].x]=colorNum;
+        ///////////////////Re spawn/////////////////////////
+            if (!check()){
 
-		 colorNum=1+rand()%7;
-		 int n=rand()%7;
-		 for (int i=0;i<4;i++)
-		   {
-		    a[i].x = figures[n][i] % 2;
-		    a[i].y = figures[n][i] / 2;
-		   }
-		}
+                for (int i=0; i<4; i++) {
 
-	  	timer=0;
-	  }
+                    if (a[i].y < 0) {///////     GAME OVER!!    ////////////////////
+                        window.draw(SgameOver);
+                        window.display();
+                        system("cls");
+                        std::cout<<" SCORE :: "<<score;
+                        restartGame();
+                        Sleep(3000);
+                        break;
+                    }
 
-	///////check lines//////////
-    int k=M-1;
-	for (int i=M-1;i>0;i--)
-	{
-		int count=0;
-		for (int j=0;j<N;j++)
-		{
-		    if (field[i][j]) count++;
-		    field[k][j]=field[i][j];
-		}
-		if (count<N) k--;
-	}
+                    field [b[i].y][b[i].x] = colorNum;//store position in field;
+                }
 
-    dx=0; rotate=0; delay=0.3;
+               spawn();
+            }
 
-    /////////draw//////////
-    window.clear(Color::White);	
-    window.draw(background);
-		  
-	for (int i=0;i<M;i++)
-	 for (int j=0;j<N;j++)
-	   {
-         if (field[i][j]==0) continue;
-		 s.setTextureRect(IntRect(field[i][j]*18,0,18,18));
-		 s.setPosition(j*18,i*18);
-		 s.move(28,31); //offset
-		 window.draw(s);
-	   }
+            timer=0;
+        }
 
-	for (int i=0;i<4;i++)
-	  {
-		s.setTextureRect(IntRect(colorNum*18,0,18,18));
-		s.setPosition(a[i].x*18,a[i].y*18);
-		s.move(28,31); //offset
-		window.draw(s);
-	  }
+        //////////check lines//////////
+        k=M-1;
+        for (int i=M-1; i>=0; i--){
+            count =0;
+            for (int j=0; j<N; j++){
+                if (field [i][j]) count++;
+                field[k][j]=field[i][j];
+            }
+            if (count<N) k--;
+            else score+=10;
+    
+        }
 
-	window.draw(frame);
- 	window.display();
-	}
+
+        dx=0; rotate = false; delay = 0.3;
+
+       //////////draw////////////
+        window.clear(Color::White);
+        window.draw(Sbg);
+
+        for (int i=0; i<M; i++)/////draw previous blocks.
+            for(int j=0; j<N; j++){
+                if (field[i][j] == 0) continue;
+                s.setTextureRect(IntRect(field[i][j]*18, 0, 18, 18));
+                s.setPosition( (j+4) *18, (i+2)*18);
+                window.draw(s);
+            }
+
+        for(int i=0; i<4; i++){////draw falling block.
+            s.setTextureRect(IntRect(colorNum*18, 0, 18,18));
+            s.setPosition( (a[i].x+4)*18, (a[i].y+2)*18);
+            window.draw(s);
+        }
+        window.draw(Sbanner);
+        window.display();
+    }
 
     return 0;
 }
